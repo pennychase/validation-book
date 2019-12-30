@@ -26,18 +26,15 @@ cleanWhiteSpace (x:xs) =
 
 -- validatePassword first strips leading white space from the input password,
 -- possibly returing a transformed string. It then checks the other
--- password requirements. checkPassword retruns a Maybe String, Nothing if any
+-- password requirements. checkPassword returns a Maybe String, Nothing if any
 -- of the functions fail, and a Just String is the password is valid.
 validatePassword :: String -> Maybe String
 validatePassword pwd =
-  case (cleanWhiteSpace pwd) of
-    Nothing -> Nothing
-    Just (pwd') ->
-      case (checkPasswordLength pwd') of
-        Nothing -> Nothing
-        Just (pwd'') -> requiredAlphaNum pwd''
+  cleanWhiteSpace pwd
+    >>= requiredAlphaNum
+    >>= checkPasswordLength
 
 main = do
-  putStrLn "Please enter a password"
+  putStr "Please enter a password\n"
   password <- getLine
   print (validatePassword password)
