@@ -3,31 +3,48 @@ module Main where
 import Data.Char
 
 -------------------------------------------------------------------------------
--- Chapter 5
--- Refactor to use Either monad in order to provide an indication of
--- the validation error (as a string) and to allow >>= to sequence
--- the validation checks.
--- Also includes some rudimentary testing.
+-- Chapter 6
+-- Use newtype to define types for Password, Username, and Error in order
+-- to enable type safety for these different Strings. Modfied function to
+-- use these types.
+-- Wrote checkUsernameLength
+-- Updated tests
 -------------------------------------------------------------------------------
 
+newtype Password = Password String
+  deriving (Show, Eq)
+
+newtype Error = Error String
+  deriving (Show, Eq)
+
+newtype Username = Username String
+  deriving (Show, Eq)
+
 -- Check that the password length is within the lower and upper bounds
-checkPasswordLength :: String -> Either String String
+checkPasswordLength :: String -> Either Error Password
 checkPasswordLength password =
   case (length password < 10 || length password > 20) of
-    True -> Left "Your password must be between 10 and 20 characters"
-    False -> Right password
+    True -> Left (Error "Your password must be between 10 and 20 characters")
+    False -> Right (Password password)
+
+-- Check that the username length is within bounds
+checkUsernameLength :: String -> Either Error Username
+checkUsernameLength name =
+  case (length name > 15) of
+    True -> Left (Error "Your username cannot be longer than 15 characters")
+    False -> Right (Username name)
 
 -- Check that the string is composed only of alphnumeric characters
-requiredAlphaNum :: String -> Either String String
+requiredAlphaNum :: String -> Either Error String
 requiredAlphaNum xs =
   case (all isAlphaNum xs) of
-    False -> Left "Your password cannot contain white space or \
-                  \special characters"
+    False -> Left (Error "Cannot contain white space or \
+                  \special characters")
     True -> Right xs
 
 -- Remove leading white space and reject empty strings
-cleanWhiteSpace :: String -> Either String String
-cleanWhiteSpace "" =     Left "Your password cannot be empty"
+cleanWhiteSpace :: String -> Either Error String
+cleanWhiteSpace "" = Left (Error "Cannot be empty")
 cleanWhiteSpace (x:xs) =
   case (isSpace x) of
     True -> cleanWhiteSpace xs
@@ -35,10 +52,11 @@ cleanWhiteSpace (x:xs) =
 
 -- validatePassword first strips leading white space from the input password,
 -- possibly returing a transformed string. It then checks the other
--- password requirements. checkPassword returns a Maybe String, Nothing if any
--- of the functions fail, and a Just String is the password is valid.
-validatePassword :: String -> Either String String
-validatePassword pwd =
+-- password requirements. validatePassword returns an EIther Error Password, so
+-- the last validation est must return EIther Error Password (so at this point
+-- the order matters)
+validatePassword :: Password -> Either Error Password
+validatePassword (Password pwd) =
   cleanWhiteSpace pwd
     >>= requiredAlphaNum
     >>= checkPasswordLength
@@ -67,20 +85,20 @@ eq n actual expected =
       , "  Expected:  " ++ show expected
       , "  But got:  " ++ show actual
       ])
-
 test :: IO ()
 test = printTestResult $
   do
-    eq 1 (checkPasswordLength "123") (Left "Your password must be between 10 and 20 characters")
-    eq 2 (checkPasswordLength (replicate 25 'a')) (Left "Your password must be between \
-                  \10 and 20 characters")
+    eq 1 (checkPasswordLength "123") (Left (Error "Your password must be \
+                \between 10 and 20 characters"))
+    eq 2 (checkPasswordLength (replicate 25 'a')) (Left (Error "Your password must be \
+                  \between 10 and 20 characters"))
     eq 3 (requiredAlphaNum "hellothere123") (Right "hellothere123")
-    eq 4 (requiredAlphaNum "hellothere!!!") (Left "Your password cannot contain white space or \
-                  \special characters")
-    eq 5 (checkPasswordLength "") (Right "")
+    eq 4 (requiredAlphaNum "hellothere!!!") (Left (Error "Cannot contain white space or special characters"))
+    eq 5 (checkPasswordLength "") (Right (Password "\"\""))-- To demonstrate failed test
+
 
 -- main
 main = do
   putStr "Please enter a password\n"
-  password <- getLine
+  password <- Password <$> getLine
   print (validatePassword password)
