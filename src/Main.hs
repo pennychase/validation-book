@@ -23,8 +23,8 @@ newtype Username = Username String
 -- Check that the password length is within the lower and upper bounds
 checkPasswordLength :: String -> Either Error Password
 checkPasswordLength password =
-  case (length password < 10 || length password > 20) of
-    True -> Left (Error "Your password must be between 10 and 20 characters")
+  case (length password > 20) of
+    True -> Left (Error "Your password cannot be longer than 20 characters")
     False -> Right (Password password)
 
 -- Check that the username length is within bounds
@@ -33,6 +33,15 @@ checkUsernameLength name =
   case (length name > 15) of
     True -> Left (Error "Your username cannot be longer than 15 characters")
     False -> Right (Username name)
+
+-- Refactor checking username and password length
+checkLength :: Int -> String -> Either Error String
+checkLength n str =
+  case (length str > n) of
+    True -> Left (Error errMsg)
+    False -> Right str
+  where
+    errMsg = "Cannot be longer than " ++ show n ++ " characters"
 
 -- Check that the string is composed only of alphnumeric characters
 requiredAlphaNum :: String -> Either Error String
@@ -60,6 +69,38 @@ validatePassword (Password pwd) =
   cleanWhiteSpace pwd
     >>= requiredAlphaNum
     >>= checkPasswordLength
+
+-- Version using checkLength
+validatePassword' :: Password -> Either Error Password
+validatePassword' (Password pwd) =
+  Password <$>
+    (cleanWhiteSpace pwd
+    >>= requiredAlphaNum
+    >>= checkLength 20)
+
+-- Version using do notation
+validatePassword'' :: Password -> Either Error Password
+validatePassword'' (Password pwd) =
+  do
+    pwd' <- cleanWhiteSpace pwd
+    pwd'' <- requiredAlphaNum pwd'
+    checkPasswordLength pwd''
+
+-- validateUsername validates usernames, first stripping white space and then
+-- checking the otehr rwquirements
+validateUsername :: Username -> Either Error Username
+validateUsername (Username name) =
+  cleanWhiteSpace name
+    >>= requiredAlphaNum
+    >>= checkUsernameLength
+
+-- Version using checkLength
+validateUsername' :: Username -> Either Error Username
+validateUsername' (Username name) =
+  Username <$>
+    (cleanWhiteSpace name
+      >>= requiredAlphaNum
+      >>= checkLength 15)
 
 -- Testing
 -- Test results are represented as Either String ()
@@ -91,11 +132,18 @@ test = printTestResult $
     eq 1 (checkPasswordLength "123") (Left (Error "Your password must be \
                 \between 10 and 20 characters"))
     eq 2 (checkPasswordLength (replicate 25 'a')) (Left (Error "Your password must be \
-                  \between 10 and 20 characters"))
+                \between 10 and 20 characters"))
     eq 3 (requiredAlphaNum "hellothere123") (Right "hellothere123")
-    eq 4 (requiredAlphaNum "hellothere!!!") (Left (Error "Cannot contain white space or special characters"))
+    eq 4 (requiredAlphaNum "hellothere!!!") (Left (Error "Cannot contain white \
+                  \space or special characters"))
     eq 5 (checkPasswordLength "") (Right (Password "\"\""))-- To demonstrate failed test
 
+-- main using bind
+main' :: IO ()
+main' =
+  putStrLn "Please enter a password" >>
+  (Password <$> getLine) >>=
+      \pwd -> print (validatePassword pwd)
 
 -- main
 main = do
