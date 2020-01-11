@@ -143,7 +143,8 @@ main' :: IO ()
 main' =
   putStrLn "Please enter a password" >>
   (Password <$> getLine) >>=
-      \pwd -> print (validatePassword pwd)
+    (print . validatePassword)
+    -- can also do this with an explicit lambda: \pwd -> print (validatePassword pwd)
 
 -- main
 main = do
