@@ -3,12 +3,12 @@ module Main where
 import Data.Char
 
 -------------------------------------------------------------------------------
--- Chapter 6
--- Use newtype to define types for Password, Username, and Error in order
--- to enable type safety for these different Strings. Modfied function to
--- use these types.
--- Wrote checkUsernameLength
--- Updated tests
+-- Chapter 7
+-- Created User datatype and the function makeUser
+-- Modified main to prompt for a username and password, and then construct
+-- the user from these arguments (after validating). main uses fmap (<$>) and
+-- applicative (<*>) to collect these independent inputs and pass them to
+-- makeUser
 -------------------------------------------------------------------------------
 
 newtype Password = Password String
@@ -18,6 +18,9 @@ newtype Error = Error String
   deriving (Show, Eq)
 
 newtype Username = Username String
+  deriving (Show, Eq)
+
+data User = User Username Password
   deriving (Show, Eq)
 
 -- Check that the password length is within the lower and upper bounds
@@ -62,7 +65,7 @@ cleanWhiteSpace (x:xs) =
 -- validatePassword first strips leading white space from the input password,
 -- possibly returing a transformed string. It then checks the other
 -- password requirements. validatePassword returns an EIther Error Password, so
--- the last validation est must return EIther Error Password (so at this point
+-- the last validation must return Either Error Password (so at this point
 -- the order matters)
 validatePassword :: Password -> Either Error Password
 validatePassword (Password pwd) =
@@ -87,7 +90,8 @@ validatePassword'' (Password pwd) =
     checkPasswordLength pwd''
 
 -- validateUsername validates usernames, first stripping white space and then
--- checking the otehr rwquirements
+-- checking the otehr rwquirements. checkUsernameLength is the last function
+-- applied because it rturns a Username when successdul
 validateUsername :: Username -> Either Error Username
 validateUsername (Username name) =
   cleanWhiteSpace name
@@ -101,6 +105,18 @@ validateUsername' (Username name) =
     (cleanWhiteSpace name
       >>= requiredAlphaNum
       >>= checkLength 15)
+
+-- Constructing a User
+makeUser :: Username -> Password -> Either Error User
+makeUser name pwd =
+  User <$> validateUsername name
+       <*> validatePassword pwd
+
+-- Construct a User with a default temporary password
+makeUserTmpPassword :: Username -> Either Error User
+makeUserTmpPassword name =
+  User <$> validateUsername name
+       <*> pure (Password "tempPassword")
 
 -- Testing
 -- Test results are represented as Either String ()
@@ -148,6 +164,8 @@ main' =
 
 -- main
 main = do
+  putStr "Please enter a username\n"
+  username <- Username <$> getLine
   putStr "Please enter a password\n"
   password <- Password <$> getLine
-  print (validatePassword password)
+  print (makeUser username password)
