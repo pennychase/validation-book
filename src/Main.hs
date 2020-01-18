@@ -7,9 +7,9 @@ import Data.Validation
 
 -------------------------------------------------------------------------------
 -- Chapter 8
--- Refactored to use Validate
+-- Refactored to use Validation
 -- Changed Error to be a list of Strings in order to capture all the
--- possible errors
+-- possible errors, which also meant creating a Semigroup Validation instance.
 -------------------------------------------------------------------------------
 
 -- Types
