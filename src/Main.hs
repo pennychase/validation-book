@@ -6,10 +6,10 @@ import Data.Char
 import Data.Validation
 
 -------------------------------------------------------------------------------
--- Chapter 8
--- Refactored to use Validation
--- Changed Error to be a list of Strings in order to capture all the
--- possible errors, which also meant creating a Semigroup Validation instance.
+-- Chapter 9
+-- Created context for error messages (to know if the username or password
+-- validation failed)
+-- Display results in a user friendly way
 -------------------------------------------------------------------------------
 
 -- Types
@@ -32,24 +32,27 @@ data User = User Username Password
 newtype Error = Error [String]
   deriving (Show, Eq, Semigroup)
 
--- Check that the password length is within the lower and upper bounds
+errorCoerce :: Error -> [String]
+errorCoerce (Error err) = err
+
+-- Check that the password length is valid
 checkPasswordLength :: String -> Validation Error Password
 checkPasswordLength password =
   case (length password > 20) of
     True -> Failure (Error ["Your password cannot be longer than 20 characters"])
     False -> Success (Password password)
 
--- Check that the username length is within bounds
+-- Check that the username length is valid
 checkUsernameLength :: String -> Validation Error Username
 checkUsernameLength name =
-  case (length name > 15) of
+  case length name > 15 of
     True -> Failure (Error ["Your username cannot be longer than 15 characters"])
     False -> Success (Username name)
 
 -- Refactor checking username and password length
 checkLength :: Int -> String -> Validation Error String
 checkLength n str =
-  case (length str > n) of
+  case length str > n of
     True -> Failure (Error errMsg)
     False -> Success str
   where
@@ -93,17 +96,44 @@ validateUsername (Username name) =
     Success name' -> requireAlphaNum name' *>
                      checkUsernameLength name'
 
+-- passwordErrors will provide the context for password errors
+-- by accumulating the errors from the different validation functions
+-- into a list and labeling it with the validation context
+passwordErrors :: Password -> Validation Error Password
+passwordErrors pwd =
+  case validatePassword pwd of
+    Failure err -> Failure (Error ["Invalid password:"] <> err)
+    Success pwd' -> Success pwd'
+
+-- usernameErrors will provide the context for username errors
+-- by accumulating the errors from the different validation functions
+-- into a list and labeling it with the validation context
+usernameErrors :: Username -> Validation Error Username
+usernameErrors name =
+  case validateUsername name of
+    Failure err -> Failure (Error ["Invalid username:"] <> err)
+    Success name' -> Success name'
+
 -- Constructing a User
 makeUser :: Username -> Password -> Validation Error User
 makeUser name pwd =
-  User <$> validateUsername name
-       <*> validatePassword pwd
+  User <$> usernameErrors name
+       <*> passwordErrors pwd
 
 -- Construct a User with a default temporary password
 makeUserTmpPassword :: Username -> Validation Error User
 makeUserTmpPassword name =
   User <$> validateUsername name
        <*> pure (Password "tempPassword")
+
+-- Display the result of creating a User: a welcome message
+-- if successful, otherwise the error messages formated nicely
+display :: Username -> Password -> IO ()
+display name pwd =
+  case makeUser name pwd of
+    Failure err -> putStr (unlines (errorCoerce err))
+    Success (User (Username name) _) -> putStrLn ("Welcome " ++ name)
+
 
 {--
 -- Testing
@@ -143,18 +173,11 @@ test = printTestResult $
     eq 5 (checkPasswordLength "") (Right (Password "\"\""))-- To demonstrate failed test
 --}
 
--- main using bind
-main' :: IO ()
-main' =
-  putStrLn "Please enter a password" >>
-  (Password <$> getLine) >>=
-    (print . validatePassword)
-    -- can also do this with an explicit lambda: \pwd -> print (validatePassword pwd)
-
 -- main
+main :: IO ()
 main = do
   putStr "Please enter a username\n"
   username <- Username <$> getLine
   putStr "Please enter a password\n"
   password <- Password <$> getLine
-  print (makeUser username password)
+  display username password
