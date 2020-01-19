@@ -9,7 +9,8 @@ import Data.Validation
 
 -------------------------------------------------------------------------------
 -- Chapter 10
--- Using Coercible
+-- Using Coercible to coerce Strings, Usernames, and Passwords in
+-- validatePassword, validateUsername, and display.
 -- Go back to Error as [String] to follow along
 -------------------------------------------------------------------------------
 
@@ -33,7 +34,7 @@ newtype Error = Error [String]
   deriving (Show, Eq, Semigroup)
 
 -- Rule
--- To add type annotations in order to coerce Strings to Passwords
+-- To add type annotations in order to coerce between Strings, Password, Usernames
 type Rule a = (a -> Validation Error a)
 
 -- Turn a string into an Error. Use this instead of the Error constructor
@@ -88,6 +89,7 @@ cleanWhiteSpace (x:xs) =
 -- password requirements. validatePassword returns an Validation Error Password, so
 -- the last validation must return Validation Error Password (so at this point
 -- the order matters)
+-- Use Rule for the type annotations to make all functions use Username
 validatePassword :: Rule Password
 validatePassword pwd =
   case (coerce cleanWhiteSpace :: Rule Password) pwd of
@@ -98,7 +100,8 @@ validatePassword pwd =
 
 -- validateUsername validates usernames, first stripping white space and then
 -- checking the otehr rwquirements. checkUsernameLength is the last function
--- applied because it rturns a Username when successdul
+-- applied because it rturns a Username when successful
+-- Use Rule for the type annotations to make all functions use Username
 validateUsername :: Rule Username
 validateUsername name =
   case (coerce cleanWhiteSpace :: Rule Username) name of
