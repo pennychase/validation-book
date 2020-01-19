@@ -1,18 +1,16 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Main where
 
 import Data.Char
+import Data.Coerce
 import Data.Validation
 
 -------------------------------------------------------------------------------
--- Chapter 9
--- Created context for error messages (to know if the username or password
--- validation failed)
--- Display results in a user friendly way
--- Exercise 29 - use a String to Error function instead of calling Error directly
--- Exercise 28 - changed representation of Error to a String with newlines
--- separated by newlines
+-- Chapter 10
+-- Using Coercible
+-- Go back to Error as [String] to follow along
 -------------------------------------------------------------------------------
 
 -- Types
@@ -30,34 +28,32 @@ data User = User Username Password
   deriving (Show, Eq)
 
 -- Error
--- Change Error to be a String with \n between each error message
--- Need to write our own semigroup instance to do this
-newtype Error = Error String
-  deriving (Show, Eq)
+-- Go back to Error as a list of Strings and derive the Semigroup instance
+newtype Error = Error [String]
+  deriving (Show, Eq, Semigroup)
 
-instance Semigroup Error where
-  Error xs <> Error ys = Error (xs ++ "\n" ++ ys)
+-- Rule
+-- To add type annotations in order to coerce Strings to Passwords
+type Rule a = (a -> Validation Error a)
 
 -- Turn a string into an Error. Use this instead of the Error constructor
 -- to make it easier to refactror different Error representations.
 stringToError :: String -> Error
-stringToError  = Error 
+stringToError str = Error [str]
 
-errorCoerce :: Error -> String
-errorCoerce (Error err) = err
 
 -- Check that the password length is valid
 checkPasswordLength :: String -> Validation Error Password
 checkPasswordLength password =
   case checkLength 3 20 password of
-    Failure (Error err) -> Failure (stringToError ("Your password " ++ err))
+    Failure (Error err) -> Failure (stringToError ("Your password " ++ (head err)))
     Success password -> Success (Password password)
 
 -- Check that the username length is valid
 checkUsernameLength :: String -> Validation Error Username
 checkUsernameLength name =
   case checkLength 3 15 name of
-    Failure (Error err)  -> Failure (stringToError ("Your username " ++ err))
+    Failure (Error err)  -> Failure (stringToError ("Your username " ++ (head err)))
     Success name -> Success (Username name)
 
 -- Refactor checking username and password length by using one function tp check bounds
@@ -92,22 +88,23 @@ cleanWhiteSpace (x:xs) =
 -- password requirements. validatePassword returns an Validation Error Password, so
 -- the last validation must return Validation Error Password (so at this point
 -- the order matters)
-validatePassword :: Password -> Validation Error Password
-validatePassword (Password pwd) =
-  case (cleanWhiteSpace pwd) of
+validatePassword :: Rule Password
+validatePassword pwd =
+  case (coerce cleanWhiteSpace :: Rule Password) pwd of
     Failure err -> Failure err
-    Success pwd' -> requireAlphaNum pwd' *>
-                    checkPasswordLength pwd'
+    Success pwd' -> 
+      (coerce requireAlphaNum :: Rule Password) pwd'  *>
+      (coerce checkPasswordLength :: Rule Password) pwd'
 
 -- validateUsername validates usernames, first stripping white space and then
 -- checking the otehr rwquirements. checkUsernameLength is the last function
 -- applied because it rturns a Username when successdul
-validateUsername :: Username -> Validation Error Username
-validateUsername (Username name) =
-  case (cleanWhiteSpace name) of
+validateUsername :: Rule Username
+validateUsername name =
+  case (coerce cleanWhiteSpace :: Rule Username) name of
     Failure err -> Failure err
-    Success name' -> requireAlphaNum name' *>
-                     checkUsernameLength name'
+    Success name' -> (coerce requireAlphaNum :: Rule Username) name' *>
+                     (coerce checkUsernameLength :: Rule Username) name'
 
 -- passwordErrors will provide the context for password errors
 -- by accumulating the errors from the different validation functions
@@ -144,8 +141,8 @@ makeUserTmpPassword name =
 display :: Username -> Password -> IO ()
 display name pwd =
   case makeUser name pwd of
-    Failure err -> putStrLn (errorCoerce err)
-    Success (User (Username name) _) -> putStrLn ("Welcome " ++ name)
+    Failure err -> putStrLn (unlines (coerce err))
+    Success (User name pwd) -> putStrLn ("Welcome " ++ coerce @Username @String name)
 
 
 {--
