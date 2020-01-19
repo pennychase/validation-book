@@ -49,27 +49,27 @@ errorCoerce (Error err) = err
 -- Check that the password length is valid
 checkPasswordLength :: String -> Validation Error Password
 checkPasswordLength password =
-  case (length password > 20) of
-    True -> Failure (stringToError "Your password cannot be longer than 20 characters")
-    False -> Success (Password password)
+  case checkLength 3 20 password of
+    Failure (Error err) -> Failure (stringToError ("Your password " ++ err))
+    Success password -> Success (Password password)
 
 -- Check that the username length is valid
 checkUsernameLength :: String -> Validation Error Username
 checkUsernameLength name =
-  case length name > 15 of
-    True -> Failure (stringToError "Your username cannot be longer than 15 characters")
-    False -> Success (Username name)
+  case checkLength 3 15 name of
+    Failure (Error err)  -> Failure (stringToError ("Your username " ++ err))
+    Success name -> Success (Username name)
 
-{- 
--- Refactor checking username and password length
-checkLength :: Int -> String -> Validation Error String
-checkLength n str =
-  case length str > n of
-    True -> Failure (Error errMsg)
+-- Refactor checking username and password length by using one function tp check bounds
+-- Have a minimum as well as maximum length
+checkLength :: Int -> Int -> String -> Validation Error String
+checkLength min max str =
+  case (length str < min) || (length str > max) of
+    True -> Failure (stringToError errMsg)
     False -> Success str
   where
-    errMsg = ["Cannot be longer than " ++ show n ++ " characters"]
--}
+    errMsg = "must be between " ++ show min ++ " and " ++ show max ++ " characters"
+
 
 -- Check that the string is composed only of alphnumeric characters
 requireAlphaNum :: String -> Validation Error String
