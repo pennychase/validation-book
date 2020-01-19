@@ -11,6 +11,8 @@ import Data.Validation
 -- validation failed)
 -- Display results in a user friendly way
 -- Exercise 29 - use a String to Error function instead of calling Error directly
+-- Exercise 28 - changed representation of Error to a String with newlines
+-- separated by newlines
 -------------------------------------------------------------------------------
 
 -- Types
@@ -28,17 +30,20 @@ data User = User Username Password
   deriving (Show, Eq)
 
 -- Error
--- Error needs a Semigroup instance, and since it's really the same as the
--- instance for List, we can use derving to create the instance
-newtype Error = Error [String]
-  deriving (Show, Eq, Semigroup)
+-- Change Error to be a String with \n between each error message
+-- Need to write our own semigroup instance to do this
+newtype Error = Error String
+  deriving (Show, Eq)
+
+instance Semigroup Error where
+  Error xs <> Error ys = Error (xs ++ "\n" ++ ys)
 
 -- Turn a string into an Error. Use this instead of the Error constructor
 -- to make it easier to refactror different Error representations.
 stringToError :: String -> Error
-stringToError str = Error [str]
+stringToError  = Error 
 
-errorCoerce :: Error -> [String]
+errorCoerce :: Error -> String
 errorCoerce (Error err) = err
 
 -- Check that the password length is valid
@@ -55,6 +60,7 @@ checkUsernameLength name =
     True -> Failure (stringToError "Your username cannot be longer than 15 characters")
     False -> Success (Username name)
 
+{- 
 -- Refactor checking username and password length
 checkLength :: Int -> String -> Validation Error String
 checkLength n str =
@@ -63,6 +69,7 @@ checkLength n str =
     False -> Success str
   where
     errMsg = ["Cannot be longer than " ++ show n ++ " characters"]
+-}
 
 -- Check that the string is composed only of alphnumeric characters
 requireAlphaNum :: String -> Validation Error String
@@ -137,7 +144,7 @@ makeUserTmpPassword name =
 display :: Username -> Password -> IO ()
 display name pwd =
   case makeUser name pwd of
-    Failure err -> putStr (unlines (errorCoerce err))
+    Failure err -> putStrLn (errorCoerce err)
     Success (User (Username name) _) -> putStrLn ("Welcome " ++ name)
 
 
