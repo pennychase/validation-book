@@ -1,25 +1,26 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
 import Data.Char
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import Data.Validation
 
 -------------------------------------------------------------------------------
--- Chapter 8
--- Refactored to use Validation
--- Changed Error to be a list of Strings in order to capture all the
--- possible errors, which also meant creating a Semigroup Validation instance.
+-- Chapter 8 - Exercise 27
+-- Refactored to use Text instead of T.Text
 -------------------------------------------------------------------------------
 
 -- Types
 
 -- Password
-newtype Password = Password String
+newtype Password = Password T.Text
   deriving (Show, Eq)
 
 -- Username
-newtype Username = Username String
+newtype Username = Username T.Text
   deriving (Show, Eq)
 
 -- User
@@ -29,47 +30,44 @@ data User = User Username Password
 -- Error
 -- Error needs a Semigroup instance, and since it's really the same as the
 -- instance for List, we can use derving to create the instance
-newtype Error = Error [String]
+newtype Error = Error [T.Text]
   deriving (Show, Eq, Semigroup)
 
 -- Check that the password length is within the lower and upper bounds
-checkPasswordLength :: String -> Validation Error Password
+checkPasswordLength :: T.Text -> Validation Error Password
 checkPasswordLength password =
-  case (length password > 20) of
+  case (T.length password > 20) of
     True -> Failure (Error ["Your password cannot be longer than 20 characters"])
     False -> Success (Password password)
 
 -- Check that the username length is within bounds
-checkUsernameLength :: String -> Validation Error Username
+checkUsernameLength :: T.Text -> Validation Error Username
 checkUsernameLength name =
-  case (length name > 15) of
+  case (T.length name > 15) of
     True -> Failure (Error ["Your username cannot be longer than 15 characters"])
     False -> Success (Username name)
 
 -- Refactor checking username and password length
-checkLength :: Int -> String -> Validation Error String
+checkLength :: Int -> T.Text -> Validation Error T.Text
 checkLength n str =
-  case (length str > n) of
+  case (T.length str > n) of
     True -> Failure (Error errMsg)
     False -> Success str
   where
-    errMsg = ["Cannot be longer than " ++ show n ++ " characters"]
+    errMsg = [T.pack("Cannot be longer than " ++ show n ++ " characters")]
 
 -- Check that the string is composed only of alphnumeric characters
-requireAlphaNum :: String -> Validation Error String
+requireAlphaNum :: T.Text -> Validation Error T.Text
 requireAlphaNum xs =
-  case (all isAlphaNum xs) of
+  case T.all isAlphaNum xs of
     False -> Failure (Error ["Cannot contain white space or \
                   \special characters"])
     True -> Success xs
 
--- Remove leading white space and reject empty strings
-cleanWhiteSpace :: String -> Validation Error String
+-- Reject empty strings and remove leading/trailing white space
+cleanWhiteSpace :: T.Text -> Validation Error T.Text
 cleanWhiteSpace "" = Failure (Error ["Cannot be empty"])
-cleanWhiteSpace (x:xs) =
-  case (isSpace x) of
-    True -> cleanWhiteSpace xs
-    False -> Success (x:xs)
+cleanWhiteSpace str = Success (T.strip str)
 
 -- validatePassword first strips leading white space from the input password,
 -- possibly returing a transformed string. It then checks the other
@@ -147,14 +145,15 @@ test = printTestResult $
 main' :: IO ()
 main' =
   putStrLn "Please enter a password" >>
-  (Password <$> getLine) >>=
+  (Password <$> T.getLine) >>=
     (print . validatePassword)
     -- can also do this with an explicit lambda: \pwd -> print (validatePassword pwd)
 
 -- main
+main :: IO ()
 main = do
   putStr "Please enter a username\n"
-  username <- Username <$> getLine
+  username <- Username <$> T.getLine
   putStr "Please enter a password\n"
-  password <- Password <$> getLine
+  password <- Password <$> T.getLine
   print (makeUser username password)
