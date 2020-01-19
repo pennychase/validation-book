@@ -10,6 +10,7 @@ import Data.Validation
 -- Created context for error messages (to know if the username or password
 -- validation failed)
 -- Display results in a user friendly way
+-- Exercise 29 - use a String to Error function instead of calling Error directly
 -------------------------------------------------------------------------------
 
 -- Types
@@ -32,6 +33,11 @@ data User = User Username Password
 newtype Error = Error [String]
   deriving (Show, Eq, Semigroup)
 
+-- Turn a string into an Error. Use this instead of the Error constructor
+-- to make it easier to refactror different Error representations.
+stringToError :: String -> Error
+stringToError str = Error [str]
+
 errorCoerce :: Error -> [String]
 errorCoerce (Error err) = err
 
@@ -39,14 +45,14 @@ errorCoerce (Error err) = err
 checkPasswordLength :: String -> Validation Error Password
 checkPasswordLength password =
   case (length password > 20) of
-    True -> Failure (Error ["Your password cannot be longer than 20 characters"])
+    True -> Failure (stringToError "Your password cannot be longer than 20 characters")
     False -> Success (Password password)
 
 -- Check that the username length is valid
 checkUsernameLength :: String -> Validation Error Username
 checkUsernameLength name =
   case length name > 15 of
-    True -> Failure (Error ["Your username cannot be longer than 15 characters"])
+    True -> Failure (stringToError "Your username cannot be longer than 15 characters")
     False -> Success (Username name)
 
 -- Refactor checking username and password length
@@ -62,13 +68,13 @@ checkLength n str =
 requireAlphaNum :: String -> Validation Error String
 requireAlphaNum xs =
   case (all isAlphaNum xs) of
-    False -> Failure (Error ["Cannot contain white space or \
-                  \special characters"])
+    False -> Failure (stringToError "Cannot contain white space or \
+                  \special characters")
     True -> Success xs
 
 -- Remove leading white space and reject empty strings
 cleanWhiteSpace :: String -> Validation Error String
-cleanWhiteSpace "" = Failure (Error ["Cannot be empty"])
+cleanWhiteSpace "" = Failure (stringToError "Cannot be empty")
 cleanWhiteSpace (x:xs) =
   case (isSpace x) of
     True -> cleanWhiteSpace xs
@@ -102,7 +108,7 @@ validateUsername (Username name) =
 passwordErrors :: Password -> Validation Error Password
 passwordErrors pwd =
   case validatePassword pwd of
-    Failure err -> Failure (Error ["Invalid password:"] <> err)
+    Failure err -> Failure (stringToError "Invalid password:" <> err)
     Success pwd' -> Success pwd'
 
 -- usernameErrors will provide the context for username errors
@@ -111,7 +117,7 @@ passwordErrors pwd =
 usernameErrors :: Username -> Validation Error Username
 usernameErrors name =
   case validateUsername name of
-    Failure err -> Failure (Error ["Invalid username:"] <> err)
+    Failure err -> Failure (stringToError "Invalid username:" <> err)
     Success name' -> Success name'
 
 -- Constructing a User
