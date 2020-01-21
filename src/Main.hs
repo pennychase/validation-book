@@ -94,7 +94,7 @@ validatePassword :: Rule Password
 validatePassword pwd =
   case (coerce cleanWhiteSpace :: Rule Password) pwd of
     Failure err -> Failure err
-    Success pwd' -> 
+    Success pwd' ->
       (coerce requireAlphaNum :: Rule Password) pwd'  *>
       (coerce checkPasswordLength :: Rule Password) pwd'
 
@@ -146,6 +146,13 @@ display name pwd =
   case makeUser name pwd of
     Failure err -> putStrLn (unlines (coerce err))
     Success (User name pwd) -> putStrLn ("Welcome " ++ coerce @Username @String name)
+
+-- Use validation, the fold for Validation, instead of the case statement
+display' :: Username -> Password -> IO ()
+display' name pwd =
+  validation (\err -> putStrLn (unlines (coerce err)))
+             (\user -> putStrLn ("Welcome " ++ coerce @Username @String name))
+             (makeUser name pwd)
 
 
 {--
