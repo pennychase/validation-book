@@ -8,10 +8,9 @@ import Data.Coerce
 import Data.Validation
 
 -------------------------------------------------------------------------------
--- Chapter 10
--- Using Coercible to coerce Strings, Usernames, and Passwords in
--- validatePassword, validateUsername, and display.
--- Go back to Error as [String] to follow along
+-- Chapter 11
+-- Generalizing
+-- Use validation as a fold in display
 -------------------------------------------------------------------------------
 
 -- Types
