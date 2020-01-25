@@ -3,6 +3,7 @@
 
 module Main where
 
+import Control.Lens
 import Data.Char
 import Data.Coerce
 import Data.Validation
@@ -10,7 +11,8 @@ import Data.Validation
 -------------------------------------------------------------------------------
 -- Chapter 11
 -- Generalizing
--- Use validation as a fold in display
+-- Use validation, the fold for Validation, to refactor display (defined as display')
+-- Use the Optics in the Validation library: Prism and Iso
 -------------------------------------------------------------------------------
 
 -- Types
@@ -111,21 +113,21 @@ validateUsername name =
 -- passwordErrors will provide the context for password errors
 -- by accumulating the errors from the different validation functions
 -- into a list and labeling it with the validation context
+-- Use over to map over the _Failure prism and accumulate the errors
 passwordErrors :: Password -> Validation Error Password
 passwordErrors pwd =
-  case validatePassword pwd of
-    Failure err -> Failure (stringToError "Invalid password:" <> err)
-    Success pwd' -> Success pwd'
+  over _Failure (\err -> stringToError "Invalid password:" <> err)
+                (validatePassword pwd)
 
 -- usernameErrors will provide the context for username errors
 -- by accumulating the errors from the different validation functions
 -- into a list and labeling it with the validation context
+-- Use over to map over the _Failure prism and accumulate the errors
 usernameErrors :: Username -> Validation Error Username
 usernameErrors name =
-  case validateUsername name of
-    Failure err -> Failure (stringToError "Invalid username:" <> err)
-    Success name' -> Success name'
-
+  over _Failure (\err -> stringToError "Invalid username:" <> err)
+                (validateUsername name)
+  
 -- Constructing a User
 makeUser :: Username -> Password -> Validation Error User
 makeUser name pwd =
