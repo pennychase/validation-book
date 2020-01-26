@@ -114,6 +114,7 @@ validateUsername name =
 -- by accumulating the errors from the different validation functions
 -- into a list and labeling it with the validation context
 -- Use over to map over the _Failure prism and accumulate the errors
+
 passwordErrors :: Password -> Validation Error Password
 passwordErrors pwd =
   over _Failure (\err -> stringToError "Invalid password:" <> err)
@@ -129,10 +130,15 @@ usernameErrors name =
                 (validateUsername name)
   
 -- Constructing a User
-makeUser :: Username -> Password -> Validation Error User
+-- Using Validate, the class of types that are isomorphic to Validation (e.g., Either),
+-- so we can use Either or Validation:
+-- makerUser @Either name pwd
+-- makeUser @Validation name pwd
+-- See display and display' for using type inference with makeUser
+makeUser :: Validate v => Username -> Password -> v Error User
 makeUser name pwd =
-  User <$> usernameErrors name
-       <*> passwordErrors pwd
+  review _Validation
+    (User <$> usernameErrors name <*> passwordErrors pwd)
 
 -- Construct a User with a default temporary password
 makeUserTmpPassword :: Username -> Validation Error User
@@ -142,18 +148,21 @@ makeUserTmpPassword name =
 
 -- Display the result of creating a User: a welcome message
 -- if successful, otherwise the error messages formated nicely
+-- Using the generic makeUser with Validate Validation (type inferred from case)
 display :: Username -> Password -> IO ()
 display name pwd =
   case makeUser name pwd of
     Failure err -> putStrLn (unlines (coerce err))
     Success (User name pwd) -> putStrLn ("Welcome " ++ coerce @Username @String name)
 
--- Use validation, the fold for Validation, instead of the case statement
+-- Display the result of creating a User: a welcome message
+-- if successful, otherwise the error messages formated nicely
+-- Using the generic makeUser with Validate Either (type inferred from case)
 display' :: Username -> Password -> IO ()
 display' name pwd =
-  validation (\err -> putStrLn (unlines (coerce err)))
-             (\user -> putStrLn ("Welcome " ++ coerce @Username @String name))
-             (makeUser name pwd)
+  case makeUser name pwd of
+    Left err -> putStrLn (unlines (coerce err))
+    Right (User name pwd) -> putStrLn ("Welcome " ++ coerce @Username @String name)
 
 
 {--
@@ -201,4 +210,4 @@ main = do
   username <- Username <$> getLine
   putStr "Please enter a password\n"
   password <- Password <$> getLine
-  display username password
+  display' username password
