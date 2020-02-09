@@ -128,7 +128,7 @@ usernameErrors :: Username -> Validation Error Username
 usernameErrors name =
   over _Failure (\err -> stringToError "Invalid username:" <> err)
                 (validateUsername name)
-  
+
 -- Constructing a User
 -- Using Validate, the class of types that are isomorphic to Validation (e.g., Either),
 -- so we can use Either or Validation:
