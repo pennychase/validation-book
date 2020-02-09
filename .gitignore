@@ -16,4 +16,4 @@ cabal.sandbox.config
 *.hp
 *.eventlog
 .stack-work/
-.stack.yaml.lock
+stack.yaml.lock
